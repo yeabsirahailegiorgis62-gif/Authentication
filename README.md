@@ -177,7 +177,23 @@ npx prisma generate
 cd ..
 ```
 
-### 5. Running the Application
+### 5. Running with Docker Compose (Recommended for Instant Deployment)
+Build and spin up both backend API and frontend Nginx containers with one command:
+
+```bash
+docker compose up --build -d
+```
+
+Access the containerized application:
+- **Frontend SPA**: [http://localhost:80](http://localhost:80)
+- **Backend API**: [http://localhost:4000/api/health](http://localhost:4000/api/health)
+
+To stop containerized services:
+```bash
+docker compose down
+```
+
+### 6. Local Manual Setup (Without Docker)
 Run both backend and frontend servers concurrently:
 
 ```bash

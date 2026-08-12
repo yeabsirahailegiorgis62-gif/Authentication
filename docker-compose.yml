@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: secure_auth_backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - DATABASE_URL=file:./dev.db
+      - CLIENT_URL=http://localhost:80
+      - SESSION_SECRET=production-super-secret-crypto-random-key-32-chars-minimum
+      - GOOGLE_CLIENT_ID=mock-google-client-id.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=mock-google-client-secret
+      - GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/google/callback
+    volumes:
+      - backend_db_data:/app/prisma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: secure_auth_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend_db_data:
