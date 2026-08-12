@@ -25,6 +25,22 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required.'),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Please enter a valid email address.'),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required.'),
+  password: z
+    .string()
+    .min(12, 'Password must be at least 12 characters long.')
+    .max(128, 'Password must not exceed 128 characters.'),
+});
+
+const confirmEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required.'),
+});
+
 /**
  * POST /api/auth/register
  * Phase 5: Registration
@@ -210,6 +226,77 @@ authRouter.delete(
 
       clearSessionCookie(res);
       res.status(200).json({ message: `Successfully revoked all ${count} sessions.` });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/verify-email/request
+ * Request email verification link
+ */
+authRouter.post(
+  '/verify-email/request',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await AuthService.requestEmailVerification(req.user!.id);
+      res.status(200).json({ message: 'Verification link sent to your email.' });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/verify-email/confirm
+ * Confirm email address using raw token
+ */
+authRouter.post(
+  '/verify-email/confirm',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token } = confirmEmailSchema.parse(req.body);
+      const user = await AuthService.confirmEmailVerification(token);
+      res.status(200).json({ user, message: 'Email address verified successfully.' });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset email (enumeration resistant)
+ */
+authRouter.post(
+  '/forgot-password',
+  authLimiter,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = forgotPasswordSchema.parse(req.body);
+      const message = await AuthService.forgotPassword(email);
+      res.status(200).json({ message });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using token & revoke all sessions
+ */
+authRouter.post(
+  '/reset-password',
+  authLimiter,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token, password } = resetPasswordSchema.parse(req.body);
+      await AuthService.resetPassword(token, password);
+      clearSessionCookie(res);
+      res.status(200).json({ message: 'Password has been reset successfully. Please sign in with your new password.' });
     } catch (err) {
       next(err);
     }

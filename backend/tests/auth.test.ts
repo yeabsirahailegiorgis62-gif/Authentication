@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { app } from '../src/app.js';
 import { prisma } from '../src/db/prisma.js';
 import { PasswordService } from '../src/services/password.service.js';
+import { VerificationTokenService } from '../src/services/verificationToken.service.js';
 import { SESSION_COOKIE_NAME } from '../src/utils/cookie.js';
 import { resetRateLimiterStores, createRateLimiter } from '../src/middleware/rateLimiter.js';
 
@@ -21,6 +22,7 @@ describe('Secure Identity System Security Test Suite', () => {
 
   beforeEach(async () => {
     resetRateLimiterStores();
+    await prisma.verificationToken.deleteMany();
     await prisma.securityEvent.deleteMany();
     await prisma.loginAttempt.deleteMany();
     await prisma.session.deleteMany();
@@ -288,6 +290,89 @@ describe('Secure Identity System Security Test Suite', () => {
       // Both cookie1 and cookie2 should now be rejected
       await request.get('/api/auth/me').set('Cookie', cookie1).expect(401);
       await request.get('/api/auth/me').set('Cookie', cookie2).expect(401);
+    });
+  });
+
+  describe('Email Verification & Password Reset Workflows', () => {
+    it('should verify email address using raw token and enforce single-use', async () => {
+      const user = await prisma.user.create({
+        data: { email: 'verify@example.com', passwordHash: 'hash' },
+      });
+
+      const { rawToken } = await VerificationTokenService.createToken(
+        user.id,
+        'EMAIL_VERIFICATION',
+        60000
+      );
+
+      const res1 = await request
+        .post('/api/auth/verify-email/confirm')
+        .send({ token: rawToken })
+        .expect(200);
+
+      expect(res1.body.user.emailVerified).toBe(true);
+
+      // Second attempt with same token must fail (single-use enforcement)
+      const res2 = await request
+        .post('/api/auth/verify-email/confirm')
+        .send({ token: rawToken })
+        .expect(400);
+
+      expect(res2.body.error.code).toBe('INVALID_TOKEN');
+    });
+
+    it('should handle forgot-password with generic response to prevent account enumeration', async () => {
+      const res1 = await request
+        .post('/api/auth/forgot-password')
+        .send({ email: 'nonexistent@example.com' })
+        .expect(200);
+
+      expect(res1.body.message).toContain('If an account with that email exists');
+
+      await request
+        .post('/api/auth/register')
+        .send({ email: 'existing@example.com', password: 'ComplexPassword99#' });
+
+      const res2 = await request
+        .post('/api/auth/forgot-password')
+        .send({ email: 'existing@example.com' })
+        .expect(200);
+
+      expect(res2.body.message).toContain('If an account with that email exists');
+    });
+
+    it('should reset password, enforce Argon2id & password rules, and revoke all active sessions', async () => {
+      const email = 'resetpass@example.com';
+      const oldPass = 'OldComplexPassword1!';
+      const newPass = 'NewSuperPassword2026!';
+
+      const regRes = await request.post('/api/auth/register').send({ email, password: oldPass });
+      const activeCookie = getCookies(regRes);
+
+      // Verify active session works
+      await request.get('/api/auth/me').set('Cookie', activeCookie).expect(200);
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      const { rawToken } = await VerificationTokenService.createToken(
+        user!.id,
+        'PASSWORD_RESET',
+        15 * 60 * 1000
+      );
+
+      // Reset password
+      await request
+        .post('/api/auth/reset-password')
+        .send({ token: rawToken, password: newPass })
+        .expect(200);
+
+      // Active session MUST be revoked after password reset
+      await request.get('/api/auth/me').set('Cookie', activeCookie).expect(401);
+
+      // Login with old password must fail
+      await request.post('/api/auth/login').send({ email, password: oldPass }).expect(401);
+
+      // Login with new password must succeed
+      await request.post('/api/auth/login').send({ email, password: newPass }).expect(200);
     });
   });
 

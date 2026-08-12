@@ -8,23 +8,24 @@ datasource db {
 }
 
 model User {
-  id               String          @id @default(uuid())
-  email            String          @unique
+  id               String              @id @default(uuid())
+  email            String              @unique
   passwordHash     String?
   name             String?
   avatarUrl        String?
-  emailVerified    Boolean         @default(false)
-  failedLoginCount Int             @default(0)
+  emailVerified    Boolean             @default(false)
+  failedLoginCount Int                 @default(0)
   lockedUntil      DateTime?
   lastLoginAt      DateTime?
   lastLoginIp      String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
-  sessions         Session[]
-  oauthAccounts    OAuthAccount[]
-  loginAttempts    LoginAttempt[]
-  securityEvents   SecurityEvent[]
+  sessions           Session[]
+  oauthAccounts      OAuthAccount[]
+  loginAttempts      LoginAttempt[]
+  securityEvents     SecurityEvent[]
+  verificationTokens VerificationToken[]
 
   @@map("users")
 }
@@ -89,4 +90,19 @@ model SecurityEvent {
   @@index([userId])
   @@index([type])
   @@map("security_events")
+}
+
+model VerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  type      String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@map("verification_tokens")
 }

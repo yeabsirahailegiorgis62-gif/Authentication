@@ -6,6 +6,9 @@ import { Login } from './pages/Login.js';
 import { Register } from './pages/Register.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { SecuritySettings } from './pages/SecuritySettings.js';
+import { ForgotPassword } from './pages/ForgotPassword.js';
+import { ResetPassword } from './pages/ResetPassword.js';
+import { VerifyEmail } from './pages/VerifyEmail.js';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -60,6 +63,23 @@ export const AppContent: React.FC = () => {
             </PublicOnlyRoute>
           }
         />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute>
+              <ForgotPassword />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicOnlyRoute>
+              <ResetPassword />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route
           path="/dashboard"
           element={

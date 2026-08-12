@@ -5,6 +5,8 @@ import { SessionService } from './session.service.js';
 import { SecurityEventService } from './securityEvent.service.js';
 import { RiskEngineService } from './riskEngine.service.js';
 import { GoogleUserProfile } from './google.service.js';
+import { VerificationTokenService } from './verificationToken.service.js';
+import { EmailService } from './email.service.js';
 
 export interface SanitizedUser {
   id: string;
@@ -333,5 +335,126 @@ export class AuthService {
     });
 
     return { user: sanitizeUser(updatedUser), rawToken };
+  }
+
+  /**
+   * Generates and sends a 24-hour email verification link.
+   */
+  static async requestEmailVerification(userId: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.emailVerified) return;
+
+    const { rawToken } = await VerificationTokenService.createToken(
+      userId,
+      'EMAIL_VERIFICATION',
+      24 * 60 * 60 * 1000 // 24 hours
+    );
+
+    await EmailService.sendVerificationEmail(user.email, rawToken);
+  }
+
+  /**
+   * Confirms email verification using raw token.
+   */
+  static async confirmEmailVerification(rawToken: string): Promise<SanitizedUser> {
+    const tokenRecord = await VerificationTokenService.verifyAndConsumeToken(
+      rawToken,
+      'EMAIL_VERIFICATION'
+    );
+
+    if (!tokenRecord) {
+      const error: any = new Error('Invalid or expired verification link.');
+      error.code = 'INVALID_TOKEN';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: tokenRecord.userId },
+      data: { emailVerified: true },
+    });
+
+    await SecurityEventService.logEvent({
+      userId: updatedUser.id,
+      type: 'PASSWORD_CHANGED', // or EMAIL_VERIFIED
+      metadata: { action: 'EMAIL_VERIFIED' },
+    });
+
+    return sanitizeUser(updatedUser);
+  }
+
+  /**
+   * Requests password reset link. Enumeration-safe.
+   */
+  static async forgotPassword(email: string): Promise<string> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (user) {
+      const { rawToken } = await VerificationTokenService.createToken(
+        user.id,
+        'PASSWORD_RESET',
+        15 * 60 * 1000 // 15 minutes
+      );
+
+      await EmailService.sendPasswordResetEmail(user.email, rawToken);
+
+      await SecurityEventService.logEvent({
+        userId: user.id,
+        type: 'PASSWORD_CHANGED',
+        metadata: { action: 'PASSWORD_RESET_REQUESTED' },
+      });
+    }
+
+    // Always return generic message to prevent account enumeration
+    return 'If an account with that email exists, a password reset link has been sent.';
+  }
+
+  /**
+   * Resets password using valid token and revokes all active sessions.
+   */
+  static async resetPassword(rawToken: string, newPassword: string): Promise<void> {
+    const tokenRecord = await VerificationTokenService.verifyAndConsumeToken(
+      rawToken,
+      'PASSWORD_RESET'
+    );
+
+    if (!tokenRecord) {
+      const error: any = new Error('Invalid or expired password reset link.');
+      error.code = 'INVALID_TOKEN';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validate new password rules
+    const passwordCheck = PasswordService.validatePassword(newPassword);
+    if (!passwordCheck.valid) {
+      const error: any = new Error(passwordCheck.message);
+      error.code = 'INVALID_INPUT';
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Hash password with Argon2id
+    const newPasswordHash = await PasswordService.hashPassword(newPassword);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: tokenRecord.userId },
+      data: {
+        passwordHash: newPasswordHash,
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
+    });
+
+    // Security requirement: Revoke ALL active user sessions on password reset
+    await SessionService.revokeAllSessions(tokenRecord.userId);
+
+    await SecurityEventService.logEvent({
+      userId: tokenRecord.userId,
+      type: 'PASSWORD_CHANGED',
+      metadata: { action: 'PASSWORD_RESET_COMPLETED' },
+    });
   }
 }

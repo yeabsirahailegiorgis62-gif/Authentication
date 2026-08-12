@@ -100,7 +100,11 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <Link to="/forgot-password" style={{ fontSize: '0.8rem' }}>Forgot password?</Link>
+          </div>
+
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%' }}>
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>

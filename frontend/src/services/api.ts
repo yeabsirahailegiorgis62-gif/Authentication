@@ -90,4 +90,39 @@ export const api = {
     });
     await handleResponse(res);
   },
+
+  async requestEmailVerification(): Promise<{ message: string }> {
+    const res = await fetch('/api/auth/verify-email/request', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  async confirmEmailVerification(token: string): Promise<{ user: User; message: string }> {
+    const res = await fetch('/api/auth/verify-email/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    return handleResponse<{ user: User; message: string }>(res);
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    });
+    return handleResponse<{ message: string }>(res);
+  },
 };
