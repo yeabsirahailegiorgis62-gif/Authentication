@@ -18,6 +18,10 @@ services:
       - GOOGLE_CLIENT_ID=mock-google-client-id.apps.googleusercontent.com
       - GOOGLE_CLIENT_SECRET=mock-google-client-secret
       - GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/callback/google
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - EMAIL_FROM=${EMAIL_FROM:-Secure Auth <onboarding@resend.dev>}
+      - REQUIRE_EMAIL_VERIFICATION=${REQUIRE_EMAIL_VERIFICATION:-false}
+
     volumes:
       - backend_db_data:/app/prisma
     healthcheck:

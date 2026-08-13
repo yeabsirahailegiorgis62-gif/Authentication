@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prisma } from '../db/prisma.js';
 import { config } from '../config/env.js';
+import { sendEmail, getVerificationEmailHtml, getPasswordResetEmailHtml } from './email.js';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -11,7 +12,27 @@ export const auth = betterAuth({
   baseURL: config.betterAuthUrl,
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
+    requireEmailVerification: config.email.requireVerification,
+    sendResetPassword: async ({ user, token }) => {
+      const resetUrl = `${config.clientUrl}/reset-password?token=${token}`;
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your password',
+        html: getPasswordResetEmailHtml(user.name, resetUrl),
+      });
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, token }) => {
+      const verifyUrl = `${config.clientUrl}/verify-email?token=${token}`;
+      await sendEmail({
+        to: user.email,
+        subject: 'Verify your email address',
+        html: getVerificationEmailHtml(user.name, verifyUrl),
+      });
+    },
   },
   socialProviders: {
     google: {

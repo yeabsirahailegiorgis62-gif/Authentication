@@ -23,6 +23,7 @@
     "google-auth-library": "^9.15.0",
     "helmet": "^8.0.0",
     "prisma": "^6.3.1",
+    "resend": "^6.19.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

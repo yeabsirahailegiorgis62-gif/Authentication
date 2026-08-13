@@ -17,4 +17,10 @@ export const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/api/auth/callback/google',
   },
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    from: process.env.EMAIL_FROM || 'Secure Auth <onboarding@resend.dev>',
+    requireVerification: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
+  },
 };
+
