@@ -78,6 +78,19 @@ authRouter.post(
         return;
       }
 
+      // Explicitly dispatch verification email via Resend
+      try {
+        await auth.api.sendVerificationEmail({
+          body: {
+            email: validated.email,
+            callbackURL: `${config.clientUrl}/verify-email`,
+          },
+          headers,
+        });
+      } catch (emailErr) {
+        console.error('[Registration] Failed to send verification email:', emailErr);
+      }
+
       res.status(201).json({
         user: {
           id: data.user.id,
@@ -88,6 +101,7 @@ authRouter.post(
           updatedAt: data.user.updatedAt,
         },
       });
+
     } catch (err) {
       next(err);
     }
@@ -277,8 +291,78 @@ authRouter.delete(
 );
 
 /**
+ * POST /api/auth/verify-email/confirm
+ */
+authRouter.post(
+  '/verify-email/confirm',
+  authLimiter,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token } = z.object({ token: z.string().min(1) }).parse(req.body);
+      const headers = fromNodeHeaders(req.headers);
+
+      const result = await auth.api.verifyEmail({
+        query: {
+          token,
+        },
+        headers,
+        asResponse: true,
+      });
+
+      forwardBetterAuthHeaders(result, res);
+
+      const data: any = await result.json().catch(() => ({}));
+      if (!result.ok) {
+        res.status(result.status || 400).json({
+          error: {
+            code: 'VERIFICATION_FAILED',
+            message: data.message || 'Invalid or expired verification token.',
+          },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        message: 'Email address verified successfully.',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/auth/verify-email/request
+ */
+authRouter.post(
+  '/verify-email/request',
+  authLimiter,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+      const headers = fromNodeHeaders(req.headers);
+
+      await auth.api.sendVerificationEmail({
+        body: {
+          email,
+          callbackURL: `${config.clientUrl}/verify-email`,
+        },
+        headers,
+      });
+
+      res.status(200).json({
+        message: 'Verification email sent successfully. Please check your inbox.',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
  * POST /api/auth/forgot-password
  */
+
 authRouter.post(
   '/forgot-password',
   authLimiter,

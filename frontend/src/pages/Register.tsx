@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter.js';
 import { Shield, User as UserIcon, Mail, Lock, AlertCircle } from 'lucide-react';
@@ -9,10 +9,11 @@ export const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
-  const navigate = useNavigate();
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +33,7 @@ export const Register: React.FC = () => {
 
     try {
       await register({ name, email, password });
-      navigate('/dashboard');
+      setRegisteredEmail(email);
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check your inputs.');
     } finally {
@@ -43,6 +44,7 @@ export const Register: React.FC = () => {
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/google';
   };
+
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
@@ -62,12 +64,31 @@ export const Register: React.FC = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Enterprise security with Argon2id & server-side sessions</p>
         </div>
 
-        {error && (
-          <div className="alert alert-error">
-            <AlertCircle size={18} />
-            <span>{error}</span>
+        {registeredEmail ? (
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <div className="alert alert-info" style={{ flexDirection: 'column', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <Mail size={42} color="var(--accent-cyan)" />
+              <strong style={{ fontSize: '1.2rem' }}>Check Your Email Inbox!</strong>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                We have sent a verification link to <strong style={{ color: '#ffffff' }}>{registeredEmail}</strong>.
+              </span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Please click the link in your email to verify your account and sign in.
+              </span>
+            </div>
+            <Link to="/login" className="btn btn-primary" style={{ width: '100%' }}>
+              Proceed to Sign In
+            </Link>
           </div>
-        )}
+        ) : (
+          <>
+            {error && (
+              <div className="alert alert-error">
+                <AlertCircle size={18} />
+                <span>{error}</span>
+              </div>
+            )}
+
 
         <form onSubmit={handleSubmit}>
           <div className="input-group">
@@ -163,7 +184,10 @@ export const Register: React.FC = () => {
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           Already have an account? <Link to="/login">Sign in</Link>
         </p>
+          </>
+        )}
       </div>
     </div>
   );
 };
+
