@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model user {
   id            String    @id @default(uuid())
   name          String
   email         String    @unique
@@ -24,15 +24,13 @@ model User {
   lastLoginAt      DateTime?
   lastLoginIp      String?
 
-  sessions       Session[]
-  accounts       Account[]
+  sessions       session[]
+  accounts       account[]
   loginAttempts  LoginAttempt[]
   securityEvents SecurityEvent[]
-
-  @@map("user")
 }
 
-model Session {
+model session {
   id        String   @id @default(uuid())
   expiresAt DateTime
   token     String   @unique
@@ -41,19 +39,18 @@ model Session {
   ipAddress String?
   userAgent String?
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])
-  @@map("session")
 }
 
-model Account {
+model account {
   id                    String    @id @default(uuid())
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  user      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -65,10 +62,9 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   @@index([userId])
-  @@map("account")
 }
 
-model Verification {
+model verification {
   id         String    @id @default(uuid())
   identifier String
   value      String
@@ -77,13 +73,12 @@ model Verification {
   updatedAt  DateTime? @updatedAt
 
   @@index([identifier])
-  @@map("verification")
 }
 
 model LoginAttempt {
   id        String   @id @default(uuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      user?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   email     String
   ipAddress String
   userAgent String?
@@ -99,7 +94,7 @@ model LoginAttempt {
 model SecurityEvent {
   id        String   @id @default(uuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      user?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   ipAddress String?
   userAgent String?
