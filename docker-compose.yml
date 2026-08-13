@@ -13,9 +13,11 @@ services:
       - DATABASE_URL=file:./dev.db
       - CLIENT_URL=http://localhost:80
       - SESSION_SECRET=production-super-secret-crypto-random-key-32-chars-minimum
+      - BETTER_AUTH_SECRET=production-super-secret-better-auth-key-32-chars-minimum
+      - BETTER_AUTH_URL=http://localhost:4000
       - GOOGLE_CLIENT_ID=mock-google-client-id.apps.googleusercontent.com
       - GOOGLE_CLIENT_SECRET=mock-google-client-secret
-      - GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/google/callback
+      - GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/callback/google
     volumes:
       - backend_db_data:/app/prisma
     healthcheck:

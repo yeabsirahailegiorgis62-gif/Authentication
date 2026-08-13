@@ -1,16 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { SessionService } from '../services/session.service.js';
-import { SESSION_COOKIE_NAME } from '../utils/cookie.js';
+import { auth } from '../lib/auth.js';
+import { fromNodeHeaders } from 'better-auth/node';
 
 /**
- * Authentication middleware verifying server-side session from HttpOnly cookie.
- * Rejects invalid, expired, or revoked sessions with HTTP 401.
+ * Authentication middleware verifying Better Auth session from incoming request headers/cookies.
+ * Rejects invalid, expired, or missing sessions with HTTP 401.
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const rawToken = req.cookies?.[SESSION_COOKIE_NAME];
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
 
-    if (!rawToken) {
+    if (!session) {
       res.status(401).json({
         error: {
           code: 'UNAUTHORIZED',
@@ -20,20 +22,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const validationResult = await SessionService.validateSession(rawToken);
-
-    if (!validationResult) {
-      res.status(401).json({
-        error: {
-          code: 'SESSION_EXPIRED',
-          message: 'Your session has expired or been revoked. Please sign in again.',
-        },
-      });
-      return;
-    }
-
-    req.user = validationResult.user;
-    req.session = validationResult.session;
+    req.user = session.user as any;
+    req.session = session.session as any;
 
     next();
   } catch (err) {
