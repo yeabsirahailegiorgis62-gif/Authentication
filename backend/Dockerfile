@@ -6,11 +6,14 @@ WORKDIR /app
 # Install OpenSSL required by Prisma Client
 RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
+ENV DATABASE_URL="file:./dev.db"
+
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY prisma ./prisma/
 RUN npx prisma generate
+RUN npx prisma db push --accept-data-loss
 
 COPY tsconfig.json ./
 COPY src ./src/
@@ -25,15 +28,13 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates curl && rm -
 
 ENV NODE_ENV=production
 ENV PORT=4000
+ENV DATABASE_URL="file:./dev.db"
 
 COPY package*.json ./
-RUN npm ci --omit=dev
-
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/server.js"]
+CMD ["node", "dist/server.js"]
